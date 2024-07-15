@@ -13,10 +13,10 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "prettier": "prettier --write --loglevel silent src",
-    "husky:install": "husky install",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch --clear-screen=true",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+     "seed": "tsx src/scripts/seed.ts"
   },
   "keywords": [
     "nodejs",
