@@ -8,10 +8,12 @@ generator client {
 }
 
 model Product {
-  id       String     @id @default(uuid())
-  name     String
-  price    Float
-  CartItem CartItem[]
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  price       Float
+  CartItem    CartItem[]
 }
 
 model Cart {

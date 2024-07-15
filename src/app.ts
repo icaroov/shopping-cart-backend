@@ -13,8 +13,12 @@ app.use(routes)
 const PORT = process.env.PORT || 3000
 
 app.listen(PORT, () => {
-  logger.info(`Success! Server is running on port ${PORT}.`)
-  logger.info(`Visit http://localhost:${PORT} to see the application.`)
+  if (process.env.NODE_ENV === "development") {
+    logger.info(`Success! Server is running on port ${PORT}.`)
+    logger.info(`Visit http://localhost:${PORT} to see the application.`)
+  } else {
+    logger.info(`Server is running.`)
+  }
 })
 
 // Schedule the cart cleanup job to run every 24 hours
