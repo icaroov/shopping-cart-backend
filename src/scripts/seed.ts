@@ -33,7 +33,13 @@ const seedDatabase = async () => {
     for (const product of products) {
       await db.product.upsert({
         where: { id: product.id },
-        update: {},
+        update: {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          description: product.description,
+          imageUrl: product.imageUrl,
+        },
         create: {
           id: product.id,
           name: product.name,
