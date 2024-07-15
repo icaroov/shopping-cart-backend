@@ -91,42 +91,33 @@ const addItemToCart = async (req: Request, res: Response) => {
         where: { id: existingItem.id },
         data: { quantity: existingItem.quantity + 1 },
       })
-
-      const updatedCart = await db.cart.update({
-        where: { id: cartId },
+    } else {
+      await db.cartItem.create({
         data: {
-          total: {
-            increment: product.price * existingItem.quantity,
-          },
-          updatedAt: new Date(),
-        },
-        include: {
-          items: {
-            include: { product: true },
-          },
+          cartId,
+          productId,
+          quantity: 1,
         },
       })
-
-      return res.json({ cart: updatedCart })
     }
 
-    await db.cartItem.create({
-      data: {
-        cartId,
-        productId,
-        quantity: 1,
-      },
+    const updatedCartItems = await db.cartItem.findMany({
+      where: { cartId: cartId },
+      include: { product: true },
     })
+
+    const total = updatedCartItems.reduce(
+      (acc, item) => acc + item.product.price * item.quantity,
+      0
+    )
 
     const updatedCart = await db.cart.update({
       where: { id: cartId },
       data: {
-        total: {
-          increment: product.price,
-        },
+        total,
         updatedAt: new Date(),
       },
-      include: { items: true },
+      include: { items: { include: { product: true } } },
     })
 
     return res.json({ cart: updatedCart })
@@ -171,15 +162,20 @@ const removeItemFromCart = async (req: Request, res: Response) => {
       await db.cartItem.delete({ where: { id: cartItem.id } })
     }
 
-    const cartTotal = cart?.items.reduce(
-      (total, item) => total + item.product.price * item.quantity,
+    const updatedCartItems = await db.cartItem.findMany({
+      where: { cartId: cartId },
+      include: { product: true },
+    })
+
+    const total = updatedCartItems.reduce(
+      (acc, item) => acc + item.product.price * item.quantity,
       0
     )
 
     const updatedCart = await db.cart.update({
       where: { id: cartId },
       data: {
-        total: cartTotal,
+        total,
         updatedAt: new Date(),
       },
       include: { items: { include: { product: true } } },

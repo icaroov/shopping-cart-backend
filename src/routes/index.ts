@@ -1,7 +1,7 @@
 import { Router } from "express"
 
-import cartController from "@/controllers/cartController"
-import productController from "@/controllers/productController"
+import cartController from "@/controllers/cart.controller"
+import productController from "@/controllers/product.controller"
 
 const routes = Router()
 
