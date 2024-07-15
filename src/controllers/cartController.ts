@@ -2,6 +2,7 @@ import { Request, Response } from "express"
 import { z } from "zod"
 
 import db from "@/lib/database"
+import { logger } from "@/lib/logger"
 
 const createCart = async (req: Request, res: Response) => {
   const bodySchema = z.object({
@@ -20,6 +21,8 @@ const createCart = async (req: Request, res: Response) => {
       total: 0,
     },
   })
+
+  logger.info(`Cart with id ${cart.id} created`)
 
   res.json(cart)
 }
@@ -55,7 +58,10 @@ const addItemToCart = async (req: Request, res: Response) => {
     return res.status(400).json({ error: "cartId and productId are required" })
   }
 
-  const cart = await db.cart.findUnique({ where: { id: cartId } })
+  const cart = await db.cart.findUnique({
+    where: { id: cartId },
+    include: { items: true },
+  })
 
   if (!cart) {
     return res.status(404).json({ error: "Cart not found" })
@@ -67,46 +73,48 @@ const addItemToCart = async (req: Request, res: Response) => {
     return res.status(404).json({ error: "Product not found" })
   }
 
-  let cartItem = await db.cartItem.findFirst({
-    where: { cartId, productId },
-  })
+  const existingItem = cart.items.find(item => item.productId === productId)
 
-  if (cartItem) {
-    cartItem = await db.cartItem.update({
-      where: { id: cartItem.id },
-      data: { quantity: cartItem.quantity + 1, price: product.price },
+  if (existingItem) {
+    await db.cartItem.update({
+      where: { id: existingItem.id },
+      data: { quantity: existingItem.quantity + 1 },
     })
-  } else {
-    cartItem = await db.cartItem.create({
+
+    const updatedCart = await db.cart.update({
+      where: { id: cartId },
       data: {
-        cartId,
-        productId,
-        quantity: 1,
-        price: product.price,
+        total: {
+          increment: product.price * existingItem.quantity,
+        },
+        updatedAt: new Date(),
       },
+      include: { items: true },
     })
+
+    return res.json({ cart: updatedCart })
   }
+
+  await db.cartItem.create({
+    data: {
+      cartId,
+      productId,
+      quantity: 1,
+    },
+  })
 
   const updatedCart = await db.cart.update({
     where: { id: cartId },
     data: {
-      items: {
-        update: {
-          where: { id: cartItem.id },
-          data: { quantity: cartItem.quantity, price: cartItem.price },
-        },
-        create: {
-          productId: product.id,
-          quantity: cartItem.quantity,
-          price: cartItem.price,
-        },
+      total: {
+        increment: product.price,
       },
-      total: cart.total + product.price,
+      updatedAt: new Date(),
     },
-    include: { items: { include: { product: true } } },
+    include: { items: true },
   })
 
-  res.json({ cart: updatedCart })
+  return res.json({ cart: updatedCart })
 }
 
 const removeItemFromCart = async (req: Request, res: Response) => {
@@ -119,6 +127,7 @@ const removeItemFromCart = async (req: Request, res: Response) => {
 
   const cartItem = await db.cartItem.findFirst({
     where: { cartId, productId },
+    include: { product: true },
   })
 
   if (!cartItem) {
@@ -136,7 +145,7 @@ const removeItemFromCart = async (req: Request, res: Response) => {
 
   const cart = await db.cart.update({
     where: { id: cartId },
-    data: { total: cartItem.price * -1 },
+    data: { total: { decrement: cartItem.product.price } },
     include: { items: { include: { product: true } } },
   })
 
@@ -150,7 +159,9 @@ const deleteCart = async (req: Request, res: Response) => {
     return res.status(400).json({ error: "id is required" })
   }
 
-  await db.cart.delete({ where: { id } })
+  await db.cart.delete({ where: { id }, include: { items: true } })
+
+  logger.info(`Cart with id ${id} deleted`)
 
   res.status(204).send()
 }
