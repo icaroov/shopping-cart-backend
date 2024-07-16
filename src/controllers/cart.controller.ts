@@ -33,22 +33,31 @@ const createCart = async (req: Request, res: Response) => {
 
 const getCartById = async (req: Request, res: Response) => {
   try {
-    const { id, sessionId } = req.params
+    const { id } = req.params
 
-    if (!id && !sessionId) {
-      return res.status(400).json({ error: "id or sessionId is required" })
+    if (!id) {
+      return res.status(400).json({ error: "id is required" })
     }
 
     const cart = await db.cart.findUnique({
-      where: { id, sessionId },
+      where: { id },
       include: { items: { include: { product: true } } },
     })
 
     if (!cart) {
-      return res.status(404).json({ error: "Cart not found" })
+      const newCart = await db.cart.create({
+        data: {
+          sessionId: new Date().getTime().toString(),
+          total: 0,
+        },
+      })
+
+      logger.info(`Cart with id "${id}" not found, creating new cart`)
+
+      return res.json({ cart: newCart })
     }
 
-    return res.json(cart)
+    return res.json({ cart })
   } catch (error) {
     logger.error(error)
   }
@@ -183,7 +192,12 @@ const removeItemFromCart = async (req: Request, res: Response) => {
 
     res.json({ cart: updatedCart })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors })
+    }
+
     logger.error(error)
+    return res.status(500).json({ error: "An error occurred" })
   }
 }
 
